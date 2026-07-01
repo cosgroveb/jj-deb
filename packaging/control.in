@@ -1,0 +1,14 @@
+Package: jj-starship
+Version: @VERSION@
+Section: vcs
+Priority: optional
+Architecture: @ARCH@
+Maintainer: Brian Cosgrove <brian@cosgrove.dev>
+Depends: libc6, libgcc-s1, zlib1g
+Homepage: https://github.com/dmmulroy/jj-starship
+Description: Unified Git and Jujutsu Starship prompt module
+ jj-starship provides a low-latency Starship custom module for Git and
+ Jujutsu repositories.
+ .
+ This private package is built from upstream jj-starship sources and is not a
+ Debian archive source package.

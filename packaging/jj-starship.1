@@ -1,0 +1,46 @@
+.TH JJ-STARSHIP 1
+.SH NAME
+jj-starship \- unified Git and Jujutsu Starship prompt module
+.SH SYNOPSIS
+.B jj-starship
+.RI [ OPTIONS ]
+.br
+.B jj-starship
+.B detect
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B jj-starship
+prints prompt metadata for Git and Jujutsu repositories in a format intended
+for Starship custom modules.
+.PP
+Use
+.B jj-starship detect
+as a Starship
+.B when
+command to check whether the current directory is inside a supported
+repository.
+.SH OPTIONS
+.TP
+.B --cwd PATH
+Read repository state from PATH instead of the current directory.
+.TP
+.B --no-color
+Disable ANSI color output.
+.TP
+.B --no-symbol
+Hide the repository symbol prefix.
+.TP
+.B --help
+Show upstream command help.
+.TP
+.B --version
+Show upstream version information.
+.SH EXAMPLE
+.nf
+[custom.jj]
+when = "jj-starship detect"
+shell = ["jj-starship"]
+format = "$output "
+.fi
+.SH AUTHOR
+jj-starship is written by Dillon Mulroy.

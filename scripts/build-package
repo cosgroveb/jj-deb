@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+PACKAGE_NAME="${PACKAGE_NAME:-jj-starship}"
+UPSTREAM_REPO="${UPSTREAM_REPO:-https://github.com/dmmulroy/jj-starship.git}"
+UPSTREAM_REF="${UPSTREAM_REF:-v0.7.1}"
+PACKAGE_REVISION="${PACKAGE_REVISION:-1}"
+default_suite() {
+  local suite
+
+  if [ -r /etc/os-release ]; then
+    suite="$(sed -n 's/^VERSION_CODENAME=//p' /etc/os-release | tr -d '"' | head -n 1)"
+  fi
+
+  printf '%s' "${suite:-sid}"
+}
+
+SUITE="${SUITE:-$(default_suite)}"
+RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-1.89.0}"
+BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
+DIST_DIR="${DIST_DIR:-$ROOT_DIR/dist}"
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'missing required command: %s\n' "$1" >&2
+    exit 1
+  fi
+}
+
+upstream_version() {
+  local version="${UPSTREAM_REF#refs/tags/}"
+  version="${version#v}"
+  printf '%s' "$version"
+}
+
+package_arch() {
+  dpkg --print-architecture
+}
+
+replace_token() {
+  local token="$1"
+  local value="$2"
+  local file="$3"
+
+  sed -i "s|@$token@|$value|g" "$file"
+}
+
+require_command cargo
+require_command date
+require_command dpkg
+require_command dpkg-deb
+require_command find
+require_command git
+require_command gzip
+require_command head
+require_command install
+require_command sed
+require_command tr
+
+VERSION="$(upstream_version)-${PACKAGE_REVISION}~${SUITE}"
+ARCH="$(package_arch)"
+WORK_DIR="$BUILD_DIR/${PACKAGE_NAME}-${UPSTREAM_REF//\//-}-${SUITE}-${ARCH}"
+SRC_DIR="$WORK_DIR/src"
+PKG_DIR="$WORK_DIR/pkg"
+DEB_PATH="$DIST_DIR/${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
+
+rm -rf "$WORK_DIR"
+mkdir -p "$SRC_DIR" "$PKG_DIR" "$DIST_DIR"
+
+git -C "$SRC_DIR" init --quiet
+git -C "$SRC_DIR" remote add origin "$UPSTREAM_REPO"
+git -C "$SRC_DIR" fetch --depth 1 origin "$UPSTREAM_REF"
+git -C "$SRC_DIR" checkout --quiet FETCH_HEAD
+
+if command -v rustup >/dev/null 2>&1; then
+  rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+  cargo "+$RUST_TOOLCHAIN" build --release --locked --manifest-path "$SRC_DIR/Cargo.toml"
+else
+  cargo build --release --locked --manifest-path "$SRC_DIR/Cargo.toml"
+fi
+
+install -D -m 0755 "$SRC_DIR/target/release/$PACKAGE_NAME" "$PKG_DIR/usr/bin/$PACKAGE_NAME"
+install -D -m 0644 "$SRC_DIR/README.md" "$PKG_DIR/usr/share/doc/$PACKAGE_NAME/README.md"
+install -D -m 0644 "$ROOT_DIR/packaging/copyright" "$PKG_DIR/usr/share/doc/$PACKAGE_NAME/copyright"
+install -D -m 0644 "$ROOT_DIR/packaging/control.in" "$PKG_DIR/DEBIAN/control"
+install -D -m 0644 "$ROOT_DIR/packaging/jj-starship.1" "$PKG_DIR/usr/share/man/man1/jj-starship.1"
+
+cat >"$PKG_DIR/usr/share/doc/$PACKAGE_NAME/changelog.Debian" <<EOF
+$PACKAGE_NAME ($VERSION) $SUITE; urgency=medium
+
+  * Build private binary package from upstream $UPSTREAM_REF.
+
+ -- Brian Cosgrove <brian@cosgrove.dev>  $(date -R)
+EOF
+
+replace_token VERSION "$VERSION" "$PKG_DIR/DEBIAN/control"
+replace_token ARCH "$ARCH" "$PKG_DIR/DEBIAN/control"
+
+find "$PKG_DIR" -type d -exec chmod 0755 {} +
+gzip -9n "$PKG_DIR/usr/share/doc/$PACKAGE_NAME/changelog.Debian"
+gzip -9n "$PKG_DIR/usr/share/man/man1/jj-starship.1"
+find "$PKG_DIR" -type f -exec chmod 0644 {} +
+chmod 0755 "$PKG_DIR/usr/bin/$PACKAGE_NAME"
+
+dpkg-deb --build --root-owner-group "$PKG_DIR" "$DEB_PATH"
+
+printf '%s\n' "$DEB_PATH"
