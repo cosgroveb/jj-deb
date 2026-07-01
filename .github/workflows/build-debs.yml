@@ -20,8 +20,8 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.suite }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.suite }} ${{ matrix.runner.arch }}
+    runs-on: ${{ matrix.runner.label }}
     container: debian:${{ matrix.suite }}
     strategy:
       fail-fast: false
@@ -30,6 +30,11 @@ jobs:
           - bookworm
           - trixie
           - sid
+        runner:
+          - arch: amd64
+            label: ubuntu-latest
+          - arch: arm64
+            label: ubuntu-24.04-arm
 
     steps:
       - name: Install build dependencies
@@ -63,7 +68,7 @@ jobs:
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: jj-starship-${{ matrix.suite }}
+          name: jj-starship-${{ matrix.suite }}-${{ matrix.runner.arch }}
           path: dist/*.deb
           if-no-files-found: error
 

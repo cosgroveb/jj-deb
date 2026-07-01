@@ -3,7 +3,7 @@
 Private binary Debian packaging for
 [dmmulroy/jj-starship](https://github.com/dmmulroy/jj-starship).
 
-This repository builds `.deb` files for:
+This repository builds `amd64` and `arm64` `.deb` files for:
 
 - Debian 12 bookworm
 - Debian 13 trixie
@@ -30,7 +30,7 @@ The package is written to `dist/`.
 ## GitHub Actions
 
 `.github/workflows/build-debs.yml` builds in Debian containers for bookworm,
-trixie, and sid.
+trixie, and sid on native `amd64` and `arm64` GitHub-hosted runners.
 
 Manual runs accept:
 
