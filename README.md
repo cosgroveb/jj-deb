@@ -8,6 +8,7 @@ This repository builds `amd64` and `arm64` `.deb` files for:
 - Debian 12 bookworm
 - Debian 13 trixie
 - Debian sid
+- Ubuntu 24.04 noble
 
 It intentionally does not maintain a Debian source package. Upstream currently
 requires Rust 1.89 and Cargo dependencies that are a poor fit for oldstable and
@@ -29,13 +30,16 @@ The package is written to `dist/`.
 
 ## GitHub Actions
 
-`.github/workflows/build-debs.yml` builds in Debian containers for bookworm,
-trixie, and sid on native `amd64` and `arm64` GitHub-hosted runners.
+`.github/workflows/build-debs.yml` builds in Debian and Ubuntu containers for
+bookworm, trixie, sid, and noble on native `amd64` and `arm64` GitHub-hosted
+runners.
 
 Manual runs accept:
 
 - `upstream_ref`: jj-starship tag, branch, or commit to build
 - `package_revision`: Debian package revision suffix
+- `publish_release`: whether to attach packages to a GitHub Release
+- `release_tag`: release tag for manual publishing
 
 Tag pushes also build packages and publish all `.deb` files to the matching
 GitHub Release.

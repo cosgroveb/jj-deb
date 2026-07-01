@@ -11,6 +11,14 @@ on:
         description: "Debian package revision"
         required: true
         default: "1"
+      publish_release:
+        description: "Attach built packages to a GitHub Release"
+        required: true
+        default: "false"
+      release_tag:
+        description: "Release tag for manual publishing"
+        required: true
+        default: "v0.7.1"
   push:
     tags:
       - "v*"
@@ -20,16 +28,21 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.suite }} ${{ matrix.runner.arch }}
+    name: Build ${{ matrix.target.suite }} ${{ matrix.runner.arch }}
     runs-on: ${{ matrix.runner.label }}
-    container: debian:${{ matrix.suite }}
+    container: ${{ matrix.target.image }}
     strategy:
       fail-fast: false
       matrix:
-        suite:
-          - bookworm
-          - trixie
-          - sid
+        target:
+          - suite: bookworm
+            image: debian:bookworm
+          - suite: trixie
+            image: debian:trixie
+          - suite: sid
+            image: debian:sid
+          - suite: noble
+            image: ubuntu:noble
         runner:
           - arch: amd64
             label: ubuntu-latest
@@ -60,7 +73,7 @@ jobs:
 
       - name: Build package
         env:
-          SUITE: ${{ matrix.suite }}
+          SUITE: ${{ matrix.target.suite }}
           UPSTREAM_REF: ${{ github.event.inputs.upstream_ref || github.ref_name }}
           PACKAGE_REVISION: ${{ github.event.inputs.package_revision || '1' }}
         run: scripts/build-package
@@ -68,7 +81,7 @@ jobs:
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: jj-starship-${{ matrix.suite }}-${{ matrix.runner.arch }}
+          name: jj-starship-${{ matrix.target.suite }}-${{ matrix.runner.arch }}
           path: dist/*.deb
           if-no-files-found: error
 
@@ -76,7 +89,7 @@ jobs:
     name: Publish release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish_release == 'true'
 
     steps:
       - name: Download package artifacts
@@ -89,4 +102,6 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
           files: dist/*.deb
+          overwrite_files: true
